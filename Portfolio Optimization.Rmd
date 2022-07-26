@@ -1,0 +1,104 @@
+---
+title: "Portfolio Optimization"
+author: "Niraj Sardar"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(PortfolioAnalytics)
+library(PerformanceAnalytics)
+library(ROI)
+library(ROI.plugin.quadprog)
+library(ROI.plugin.glpk)
+```
+### A. Loading Data 
+```{r}
+
+data(edhec)
+# Use the first 4 columns in edhec for a returns object
+returns <- edhec[, 1:6]
+colnames(returns) <- c("CA", "CTAG", "DS", "EM", "EQMN", "ED")
+fund.names <- colnames(returns)
+print(head(returns, 5))
+
+colMeans(returns)
+
+x = round(var(returns), 6)
+print(x)
+
+x = round(cor(returns), 6)
+print(x)
+
+matplot(returns)
+
+```
+
+### B. Create the Portfolio Ojbect
+
+```{r}
+
+myport1 <- portfolio.spec(assets=fund.names)
+print.default(myport1)
+
+```
+
+### C. Constraints
+
+```{r}
+
+myport1 <- add.constraint(portfolio=myport1, type="weight_sum", 
+                        min_sum=1, max_sum=1)
+
+myport1 <- add.constraint(portfolio=myport1, type="box", 
+                        min=0.05, max=0.4)
+```
+
+### D. Objective
+```{r}
+myport1 <- add.objective(myport1, type="risk", name="StdDev")
+myport1
+
+```
+
+### E. Optimize
+```{r}
+
+solution <- optimize.portfolio(returns, myport1, 
+                                 optimize_method="ROI", trace=TRUE)
+solution
+
+```
+
+### Maximize mean return with ROI
+
+```{r}
+
+base_port <- portfolio.spec(assets=fund.names)
+base_port <- add.constraint(portfolio=base_port, type="leverage", 
+                            min_sum=0.99, max_sum=1.01)
+base_port <- add.constraint(portfolio=base_port, type="box", min=0.05, max=0.65)
+
+maxret <- add.objective(portfolio=base_port, type="return", name="mean")
+opt_maxret <- optimize.portfolio(R=returns, portfolio=maxret, 
+                                 optimize_method="ROI", trace=TRUE)
+print(opt_maxret)
+```
+
+```{r}
+colMeans(returns)
+names(opt_maxret)
+opt_maxret$weights
+opt_maxret$objective_measures$mean
+sum(colMeans(returns)*opt_maxret$weights)
+
+```
+
+### Minimize variance with ROI
+```{r}
+
+minvar <- add.objective(portfolio=base_port, type="risk", name="var")
+opt_minvar <- optimize.portfolio(R=returns, portfolio=minvar, 
+                                 optimize_method="ROI", trace=TRUE)
+print(opt_minvar)
+```
+
